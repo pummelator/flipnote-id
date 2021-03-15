@@ -7,7 +7,7 @@ import procHeaders
 import htmlOut
 
 # Stores the version of this script
-FNID_VERSION = "0.3.0"
+FNID_VERSION = "0.4.0"
 # Name of the directory that HTML exports will be placed in
 HTML_OUTPUT_DIR_NAME = "flipnoteid_out"
 
@@ -101,6 +101,8 @@ def main():
             ignorePpm = False
             ignoreKwz = False
             consoleOut = False
+            addThumbnails = True
+            addSudofont = True
             validArgs = True
             GVAR_VERBOSE = False
             # If the last character is not a forward slash, append one to the end
@@ -116,6 +118,10 @@ def main():
                     ignorePpm = True
                 elif (sys.argv[i] == "-nr"):
                     recursive = False
+                elif (sys.argv[i] == "-ns"):
+                    addSudofont = False
+                elif (sys.argv[i] == "-nt"):
+                    addThumbnails = False
                 elif (sys.argv[i] == "-v"):
                     GVAR_VERBOSE = True
                     setVerboseAll()
@@ -151,7 +157,7 @@ def main():
                     outputToConsole(users, notes)
                 else:
                     print("Exporting to HTML files at " + locationOut + HTML_OUTPUT_DIR_NAME)
-                    htmlOut.htmlExport(users, notes, locationOut, template, locationIn)
+                    htmlOut.htmlExport(users, notes, locationOut, template, locationIn, addThumbnails, addSudofont)
                     print("HTML export finished.")
 
         # Handling for the IN_PATH being a file
@@ -187,6 +193,8 @@ def printHelp():
     print("  -ik    Ignore KWZ files when searching through directories.")
     print("  -ip    Ignore PPM files when searching through directories.")
     print("  -nr    This program defaults to recursively searching through any found\n         subdirectories. Pass this option to prevent recursive searching.")
+    print("  -ns    Do not copy Sudofont to the export directory. This option is not\n         necessary if sudofont.ttf is not in the flipnote-id directory.")
+    print("  -nt    Do not extract thumbnails from Flipnotes. Useful for keeping output\n         sizes down and for speeding up the processing.")
     print("  -v     Give verbose output.")
     print("\n  -t=[TEMPLATE]    Specify a template to be used when exporting to HTML.\n                   Default is \"plain\"")
     print("\n  -o=[OUT_PATH]    Specify the directory to send an HTML export to.\n                   Default is the specified input path.")

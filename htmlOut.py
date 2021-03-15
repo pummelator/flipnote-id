@@ -4,11 +4,12 @@ from shutil import copyfile
 import datetime
 
 from objects import *
+import getThumb
 
 global VERBOSE_OUT
 VERBOSE_OUT = False
 # Stores the version of this script
-FNID_VERSION = "0.3.0"
+FNID_VERSION = "0.4.0"
 # Name of the directory that HTML exports will be placed in
 HTML_OUTPUT_DIR_NAME = "flipnoteid_out"
 
@@ -27,11 +28,12 @@ def detectSudofontTtf():
     return os.path.isfile(getScriptDir() + "sudofont.ttf")
 
 # Takes the collected informations and outputs it to HTML files
-def htmlExport(usersList, flipnotesList, location, template, scannedPath):
+def htmlExport(usersList, flipnotesList, location, template, scannedPath, addThumbnails, addSudo):
     if os.access(location, os.W_OK):
         try:
             if (VERBOSE_OUT):
                 print("Creating HTML export directory: " + location + HTML_OUTPUT_DIR_NAME)
+                getThumb.VERBOSE_OUT = True
             os.mkdir(location + HTML_OUTPUT_DIR_NAME)
         except:
             pass
@@ -41,14 +43,18 @@ def htmlExport(usersList, flipnotesList, location, template, scannedPath):
         copyfile(scriptDir + "web_template/" + template + "/index_h.html", location + HTML_OUTPUT_DIR_NAME + "/index.html")
         copyfile(scriptDir + "web_template/" + template + "/authors_h.html", location + HTML_OUTPUT_DIR_NAME + "/authors.html")
         copyfile(scriptDir + "web_template/" + template + "/flipnotes_h.html", location + HTML_OUTPUT_DIR_NAME + "/flipnotes.html")
-        if (detectSudofontTtf()):
+        if (addThumbnails):
+            os.mkdir(location + HTML_OUTPUT_DIR_NAME + "/thumb")
+        if (not addSudo):
+            print("-ns option passed. Sudofont will not be copied over")       
+        elif (detectSudofontTtf()):
             print("sudofont.ttf detected in script directory. Copying to HTML export directory.")
             copyfile(scriptDir + "sudofont.ttf", location + HTML_OUTPUT_DIR_NAME + "/sudofont.ttf")
         else:
             print("sudofont.ttf not detected in script directory.")
 
         htmlExportAuthors(usersList, location)
-        htmlExportFlipnotes(flipnotesList, location)
+        htmlExportFlipnotes(flipnotesList, location, scannedPath, addThumbnails)
         htmlExportMain(usersList, flipnotesList, location, scannedPath)
 
         if (VERBOSE_OUT):
@@ -108,22 +114,32 @@ def htmlExportAuthors(usersList, location):
     authorPage.close()
 
 # Used by htmlExport to handle the core content that goes into the Flipnotes page
-def htmlExportFlipnotes(flipnotesList, location):
+def htmlExportFlipnotes(flipnotesList, location, scannedPath, addThumbnails):
     if (VERBOSE_OUT):
         print("Exporting Flipnote information to file: " + location + HTML_OUTPUT_DIR_NAME + "/flipnotes.html")
     flipnotePage = open(location + HTML_OUTPUT_DIR_NAME + "/flipnotes.html", 'a')
     for i in range(len(flipnotesList)):
+        currentIsPpm = flipnotesList[i].isPpm()
         if (VERBOSE_OUT):
             print("Exporting Flipnote (relative file path): " + flipnotesList[i].getFilenameOnDisk())
         addFlipnote =  "<a id=\"" + (flipnotesList[i].getFilenameOnDisk()).replace("/", "-") + "\">\n"
         addFlipnote += "<h1>Current Name of Flipnote: " + flipnotesList[i].getFilenameCurrent() + "</h1>\n"
+        if (addThumbnails):
+            if (VERBOSE_OUT):
+                print("Getting thumbnail for Flipnote...")
+            makeRequiredThumbDirs(location, flipnotesList[i].getFilenameOnDisk())
+            if (currentIsPpm):
+                getThumb.getThumbPpm(scannedPath + flipnotesList[i].getFilenameOnDisk(), location + HTML_OUTPUT_DIR_NAME + "/thumb/" + flipnotesList[i].getFilenameOnDisk() + ".jpg")
+            else:
+                getThumb.getThumbKwz(scannedPath + flipnotesList[i].getFilenameOnDisk(), location + HTML_OUTPUT_DIR_NAME + "/thumb/" + flipnotesList[i].getFilenameOnDisk() + ".jpg")
+            addFlipnote += "<img src=\"thumb/" + flipnotesList[i].getFilenameOnDisk() + ".jpg\" alt=\"Thumbnail\" style=\"height:96px;\" />\n"
         addFlipnote += "<p>Date and Time of Last Edit: " + flipnotesList[i].getDateStored() + " at " + flipnotesList[i].getTimeStored() + "</p>\n"
         lockStatus = ""
         if (flipnotesList[i].isLocked()):
             lockStatus = "Locked"
         else:
             lockStatus = "not Locked"
-        if (flipnotesList[i].isPpm()):
+        if (currentIsPpm):
             addFlipnote += "<p>Flipnote is in .PPM format (Flipnote Studio / DSi) and is " + lockStatus + "</p>\n"
         else:
             addFlipnote += "<p>Flipnote is in .KWZ format (Flipnote Studio 3D / 3DS) and is " + lockStatus + "</p>\n"
@@ -213,3 +229,13 @@ def grabUnixTimeFromFlipnote(flipnote, scannedPath):
     for i in range(0, 4):
         timeBytes += flipnoteFile.read(1)
     return (timeBytes[0] + (timeBytes[1] << 8) + (timeBytes[2] << 16) + (timeBytes[3] << 24))
+
+# Makes any required subdirectories
+def makeRequiredThumbDirs(location, filenameOnDisk):
+    subdirs = filenameOnDisk.split("/")
+    for i in range(len(subdirs) - 1):
+        dirToMake = location + HTML_OUTPUT_DIR_NAME + "/thumb"
+        for j in range(i + 1):
+            dirToMake += "/" + subdirs[j]
+        if (not os.path.isdir(dirToMake)):
+            os.mkdir(dirToMake)
